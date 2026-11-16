@@ -10,63 +10,22 @@ class DashboardController extends Controller {
     
     public function index() {
         try {
+
+        $db = Database::getInstance();
             $this->requireLogin();
-            $db = Database::getInstance();
-            
-            // ========== ESTADÍSTICAS PRINCIPALES ==========
-            $stats = [
-                // Atletas
-                'atletas' => $db->query("SELECT COUNT(*) FROM atletas WHERE activo=1")->fetchColumn(),
-                'atletas_inactivos' => $db->query("SELECT COUNT(*) FROM atletas WHERE activo=0")->fetchColumn(),
-                
-                // Combates
-                'combates' => $db->query("SELECT COUNT(*) FROM combates")->fetchColumn(),
-                'combates_pendientes' => $db->query("SELECT COUNT(*) FROM combates WHERE resultado='Pendiente'")->fetchColumn(),
-                'combates_finalizados' => $db->query("SELECT COUNT(*) FROM combates WHERE resultado!='Pendiente'")->fetchColumn(),
-                
-                // Entrenadores y Clubes
-                'entrenadores' => $db->query("SELECT COUNT(*) FROM entrenadores")->fetchColumn(),
-                'clubes' => $db->query("SELECT COUNT(*) FROM clubes")->fetchColumn(),
-                
-                // Torneos (activos en curso)
-                'torneos_activos' => $db->query("SELECT COUNT(*) FROM torneos WHERE fecha_inicio <= CURDATE() AND (fecha_fin IS NULL OR fecha_fin >= CURDATE())")->fetchColumn(),
-                'torneos_proximos' => $db->query("SELECT COUNT(*) FROM torneos WHERE fecha_inicio > CURDATE()")->fetchColumn(),
-            ];
-            
-            // ========== ÚLTIMOS COMBATES ==========
-            $ultimos = $db->query("SELECT cb.*, 
-                CONCAT(al.pnombre,' ',al.papellido) local_nombre,
-                CONCAT(av.pnombre,' ',av.papellido) visitante_nombre
-                FROM combates cb
-                LEFT JOIN atletas al ON al.id_atleta=cb.id_atleta_local
-                LEFT JOIN atletas av ON av.id_atleta=cb.id_atleta_visitante
-                ORDER BY cb.fecha DESC LIMIT 5")->fetchAll();
-            
-            // ========== ATLETAS POR NIVEL (CORREGIDO) ==========
-            // Usamos vista_atletas (que calcula total_combates) y agrupamos por rangos en SQL
-            $nivelesQuery = $db->query("
-                SELECT 
-                    SUM(CASE WHEN total_combates <= 5 THEN 1 ELSE 0 END) AS Novato,
-                    SUM(CASE WHEN total_combates BETWEEN 6 AND 20 THEN 1 ELSE 0 END) AS Intermedio,
-                    SUM(CASE WHEN total_combates BETWEEN 21 AND 40 THEN 1 ELSE 0 END) AS Avanzado,
-                    SUM(CASE WHEN total_combates >= 41 THEN 1 ELSE 0 END) AS Experto
-                FROM vista_atletas 
-                WHERE activo = 1
-            ")->fetch();
-            
+            $dasData= new Dashboard();
+            $stats = $dasData->stats();
+            $ultimos = $dasData->ultimos();
+            $nivelesQuery = $dasData->niveles();
+
             $atletasNivel = [
                 'Novato' => (int)($nivelesQuery['Novato'] ?? 0),
                 'Intermedio' => (int)($nivelesQuery['Intermedio'] ?? 0),
                 'Avanzado' => (int)($nivelesQuery['Avanzado'] ?? 0),
                 'Experto' => (int)($nivelesQuery['Experto'] ?? 0)
             ];
-            
-            // ========== COMBATES DEL MES ==========
-            $combatesMes = $db->query("SELECT COUNT(*) FROM combates WHERE MONTH(fecha) = MONTH(CURDATE()) AND YEAR(fecha) = YEAR(CURDATE())")->fetchColumn();
-            
-            // ========== TORNEOS ACTIVOS (DETALLE) ==========
-            $torneosDetalle = $db->query("SELECT nombre_torneo, fecha_inicio, fecha_fin FROM torneos WHERE fecha_inicio <= CURDATE() AND (fecha_fin IS NULL OR fecha_fin >= CURDATE()) LIMIT 3")->fetchAll();
-            
+            $combatesMes = $dasData->combatesMes();
+            $torneosDetalle = $dasData->torneosDetalle();
             $this->view('dashboard/index', compact('stats', 'ultimos', 'atletasNivel', 'combatesMes', 'torneosDetalle'));
             
         } catch (Throwable $e) {
