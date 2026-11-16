@@ -1,0 +1,213 @@
+/* =========================================================
+   SISTEMA DE VALIDACIONES PROFESIONALES
+   ========================================================= */
+
+/* Transición suave en los inputs */
+.form-control, .form-select {
+    transition: border-color .25s ease, box-shadow .25s ease, background-color .25s ease;
+}
+
+/* -------- ESTADO VÁLIDO (verde) -------- */
+.form-control.is-valid,
+.form-select.is-valid {
+    border-color: #198754 !important;
+    background-color: #f0fff8;
+    box-shadow: 0 0 0 0.2rem rgba(25, 135, 84, 0.15) !important;
+}
+
+.form-control.is-valid:focus,
+.form-select.is-valid:focus {
+    border-color: #198754 !important;
+    box-shadow: 0 0 0 0.25rem rgba(25, 135, 84, 0.25) !important;
+}
+
+/* -------- ESTADO INVÁLIDO (rojo) -------- */
+.form-control.is-invalid,
+.form-select.is-invalid {
+    border-color: #dc3545 !important;
+    background-color: #fff5f5;
+    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.15) !important;
+    animation: shake 0.35s ease;
+}
+
+.form-control.is-invalid:focus,
+.form-select.is-invalid:focus {
+    border-color: #dc3545 !important;
+    box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25) !important;
+}
+
+/* Animación shake cuando hay error */
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-5px); }
+    40% { transform: translateX(5px); }
+    60% { transform: translateX(-3px); }
+    80% { transform: translateX(3px); }
+}
+
+/* -------- MENSAJES DE FEEDBACK -------- */
+.invalid-feedback,
+.valid-feedback {
+    font-size: 0.825rem;
+    font-weight: 500;
+    margin-top: 0.35rem;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    animation: fadeIn .2s ease;
+}
+
+.invalid-feedback::before {
+    content: "\F33A"; /* bi-x-circle-fill */
+    font-family: "bootstrap-icons";
+    font-size: 0.9rem;
+}
+
+.valid-feedback::before {
+    content: "\F26A"; /* bi-check-circle-fill */
+    font-family: "bootstrap-icons";
+    font-size: 0.9rem;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* -------- LABELS -------- */
+.form-label {
+    font-weight: 500;
+    font-size: 0.9rem;
+    margin-bottom: 0.35rem;
+    color: #2c3e50;
+}
+
+.form-label.required::after {
+    content: " *";
+    color: #dc3545;
+    font-weight: 700;
+}
+
+/* -------- HINTS / AYUDAS -------- */
+.form-text {
+    font-size: 0.78rem;
+    color: #6c757d;
+    margin-top: 0.3rem;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.form-text::before {
+    content: "\F431"; /* bi-info-circle */
+    font-family: "bootstrap-icons";
+    font-size: 0.85rem;
+    color: #0d6efd;
+}
+
+/* -------- INPUT GROUP -------- */
+.input-group .form-control.is-valid,
+.input-group .form-control.is-invalid {
+    z-index: 3;
+}
+
+/* -------- RESALTAR CARD CUANDO HAY ERRORES GLOBALES -------- */
+.alert-errors {
+    border-left: 4px solid #dc3545;
+    background: linear-gradient(90deg, #fff5f5 0%, #ffffff 100%);
+    animation: fadeIn .3s ease;
+}
+
+.alert-errors ul {
+    margin: 0.5rem 0 0 0;
+    padding-left: 1.25rem;
+}
+
+.alert-errors li {
+    margin-bottom: 0.15rem;
+}
+
+/* -------- BADGE DE ESTADO -------- */
+.field-status-badge {
+    font-size: 0.7rem;
+    padding: 0.15rem 0.45rem;
+    border-radius: 0.25rem;
+    margin-left: 0.4rem;
+    font-weight: 600;
+    vertical-align: middle;
+}
+
+.field-status-badge.ok  { background: #d1e7dd; color: #0a3622; }
+.field-status-badge.err { background: #f8d7da; color: #58151c; }
+
+/* -------- BOTÓN DESHABILITADO MIENTRAS HAY ERRORES -------- */
+button[type="submit"]:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+/* =========================================================
+   OCULTAR EL ICONO NATIVO DE VALIDACIÓN (triangulito) DE CHROME/EDGE
+   ========================================================= */
+
+/* Icono de validación en el borde derecho del input */
+input::-webkit-validation-bubble-icon,
+input::-webkit-validation-bubble-message,
+input::-webkit-validation-bubble-arrow,
+input::-webkit-validation-bubble-arrow-clipper {
+    display: none !important;
+}
+
+/* El triangulito real de Chrome en muchos casos usa este pseudo */
+input:invalid::-webkit-calendar-picker-indicator {
+    /* nada, solo por si acaso */
+}
+
+/* Neutralizar cualquier sombra/borde/icono que el navegador pinte */
+input:invalid,
+select:invalid,
+textarea:invalid,
+input:valid,
+select:valid,
+textarea:valid {
+    background-image: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+/* Deshabilitar tooltips nativos al hover */
+input:invalid {
+    /* Nada, es solo para resetear */
+}
+
+/* Y que SOLO nuestros estilos is-invalid/is-valid manden */
+.form-control.is-invalid,
+.form-select.is-invalid {
+    background-image: none !important; /* quitar el icono X nativo de Bootstrap */
+    border-color: #dc3545 !important;
+    background-color: #fff5f5;
+    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.15) !important;
+}
+
+.form-control.is-valid,
+.form-select.is-valid {
+    background-image: none !important; /* quitar el icono ✓ nativo de Bootstrap */
+    border-color: #198754 !important;
+    background-color: #f0fff8;
+    box-shadow: 0 0 0 0.2rem rgba(25, 135, 84, 0.15) !important;
+}
+/* =========================================================
+   OCULTAR feedback vacío (evita el iconito fantasma)
+   ========================================================= */
+
+/* Si está vacío, no lo mostramos */
+.invalid-feedback:empty,
+.valid-feedback:empty {
+    display: none !important;
+}
+
+/* Y si está vacío, no mostramos el ::before tampoco */
+.invalid-feedback:empty::before,
+.valid-feedback:empty::before {
+    content: none !important;
+    display: none !important;
+}
