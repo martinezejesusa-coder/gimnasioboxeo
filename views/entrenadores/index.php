@@ -1,10 +1,6 @@
 <?php 
 $rol = $_SESSION['usuario']['rol'] ?? 'Consulta';
-$modeloEnt = new Entrenador();
-$clubesPorEntrenador = [];
-foreach ($entrenadores as $e) {
-    $clubesPorEntrenador[$e['id_entrenador']] = $modeloEnt->clubesDe((int)$e['id_entrenador']);
-}
+
 ?>
 
 <div class="d-flex justify-content-between mb-3">
