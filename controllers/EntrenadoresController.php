@@ -10,7 +10,12 @@ class EntrenadoresController extends Controller {
             $this->requireLogin();
             $entrenadores = (new Entrenador())->todos();
             $clubes = (new Club())->todos();
-            $this->view('entrenadores/index', compact('entrenadores', 'clubes'));
+            $modeloEnt = new Entrenador();
+            $clubesPorEntrenador = [];
+            foreach ($entrenadores as $e) {
+            $clubesPorEntrenador[$e['id_entrenador']] = $modeloEnt->clubesDe((int)$e['id_entrenador']);
+}
+            $this->view('entrenadores/index', compact('entrenadores', 'clubes','clubesPorEntrenador'));
         } catch (Exception $e) {
             error_log("[EntrenadoresController::index] " . $e->getMessage());
             $_SESSION['error'] = "Error al cargar la lista de entrenadores";
