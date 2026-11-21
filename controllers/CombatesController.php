@@ -2,13 +2,11 @@
 /**
  * Controlador de Combates
  * 
- *
+ * Usa los SETTERS del modelo para validar cada campo (sin duplicar lógica).
+ * Los métodos crear()/actualizar() del modelo NO reciben parámetros.
  */
 class CombatesController extends Controller {
     
-    /**
-     * Lista todos los combates registrados.
-     */
     public function index(): void {
         try {
             $this->requireLogin();
@@ -20,12 +18,11 @@ class CombatesController extends Controller {
             $this->redirect('index.php?c=dashboard&a=index');
         }
     }
-
+    
     public function ajaxListar(): void {
         $this->requireLogin();
         try {
-            $modelo = new Combate();
-            $resultado = $modelo->listarServerSide($_POST);
+            $resultado = (new Combate())->listarServerSide($_POST);
             $this->json($resultado);
         } catch (Exception $e) {
             error_log("[CombatesController::ajaxListar] " . $e->getMessage());
@@ -55,10 +52,12 @@ class CombatesController extends Controller {
         $tarjetas = (new TarjetaPuntuacion())->obtenerPorCombate($id);
         $resumenJueces = (new TarjetaPuntuacion())->resumenPorJuez($id);
         
+        // Obtener atletas desde el modelo
         $atletaModel = new Atleta();
         $local = $atletaModel->obtener($combate['id_atleta_local']);
         $visitante = $atletaModel->obtener($combate['id_atleta_visitante']);
         
+        // Lógica de negocio en el CONTROLADOR
         $resultado = $combate['resultado'];
         $colorRes = 'secondary';
         $textoRes = $resultado;
@@ -68,22 +67,15 @@ class CombatesController extends Controller {
         $nombreVisitante = isset($visitante['pnombre']) ? $visitante['pnombre'] . ' ' . $visitante['papellido'] : 'N/A';
         
         if ($resultado === 'Local') {
-            $colorRes = 'success';
-            $textoRes = 'GANA LOCAL';
-            $ganadorNombre = $nombreLocal;
+            $colorRes = 'success'; $textoRes = 'GANA LOCAL'; $ganadorNombre = $nombreLocal;
         } elseif ($resultado === 'Visitante') {
-            $colorRes = 'success';
-            $textoRes = 'GANA VISITANTE';
-            $ganadorNombre = $nombreVisitante;
+            $colorRes = 'success'; $textoRes = 'GANA VISITANTE'; $ganadorNombre = $nombreVisitante;
         } elseif ($resultado === 'Empate') {
-            $colorRes = 'secondary';
-            $textoRes = 'EMPATE';
+            $colorRes = 'secondary'; $textoRes = 'EMPATE';
         } elseif ($resultado === 'Pendiente') {
-            $colorRes = 'warning';
-            $textoRes = 'PENDIENTE';
+            $colorRes = 'warning'; $textoRes = 'PENDIENTE';
         } elseif ($resultado === 'No Contest') {
-            $colorRes = 'dark';
-            $textoRes = 'SIN DECISIÓN';
+            $colorRes = 'dark'; $textoRes = 'SIN DECISIÓN';
         }
         
         $this->view('combates/ver', compact(
@@ -94,9 +86,6 @@ class CombatesController extends Controller {
         ));
     }
     
-    /**
-     * Prepara y muestra el formulario de creación o edición.
-     */
     public function form(): void {
         try {
             $this->requireRol(['Administrador', 'Entrenador']);
@@ -135,22 +124,18 @@ class CombatesController extends Controller {
             $atletas = (new Atleta())->todos(['activo' => 1]);
             $jueces = (new Juez())->todos();
             
-            // Scripts específicos de este módulo
             $scriptsModulo = ['public/js/combates.js'];
             
             $this->view('combates/form', compact(
                 'combate', 'torneos', 'atletas', 'jueces', 'tarjetas', 'errores', 'scriptsModulo'
             ));
-            
         } catch (Exception $e) {
             $_SESSION['error'] = $e->getMessage();
             $this->redirect('index.php?c=combates&a=index');
         }
     }
     
-    /**
-     * Persiste un combate nuevo o actualiza uno existente.
-     */
+    
     public function guardar(): void {
         $this->requireRol(['Administrador', 'Entrenador']);
         
@@ -158,114 +143,74 @@ class CombatesController extends Controller {
         $errores = [];
         
         try {
-            // ============ CAPTURA Y SANITIZACIÓN DE DATOS ============
-            $idLocal = (int)($_POST['id_atleta_local'] ?? 0);
-            $idVisitante = (int)($_POST['id_atleta_visitante'] ?? 0);
-            $fecha = trim($_POST['fecha'] ?? '');
-            $ronda = (int)($_POST['ronda'] ?? 0);
-            $roundsPautados = (int)($_POST['rounds_pautados'] ?? 3);
-            $resultado = $_POST['resultado'] ?? 'Pendiente';
-            $decision = $_POST['decision_victoria'] ?? null;
+            $modelo = new Combate();
+            
+            // ENCAPSULAMIENTO:
+            // Cada setter valida. Si falla, capturamos el error específico del campo.
+            
+            try { $modelo->setIdTorneo(!empty($_POST['id_torneo']) ? (int)$_POST['id_torneo'] : null); }
+            catch (InvalidArgumentException $e) { $errores['id_torneo'] = $e->getMessage(); }
+            
+            try { $modelo->setIdAtletaLocal((int)($_POST['id_atleta_local'] ?? 0)); }
+            catch (InvalidArgumentException $e) { $errores['id_atleta_local'] = $e->getMessage(); }
+            
+            try { $modelo->setIdAtletaVisitante((int)($_POST['id_atleta_visitante'] ?? 0)); }
+            catch (InvalidArgumentException $e) { $errores['id_atleta_visitante'] = $e->getMessage(); }
+            
+            try { $modelo->setFecha($_POST['fecha'] ?? ''); }
+            catch (InvalidArgumentException $e) { $errores['fecha'] = $e->getMessage(); }
+            
+            try { $modelo->setRonda((int)($_POST['ronda'] ?? 0)); }
+            catch (InvalidArgumentException $e) { $errores['ronda'] = $e->getMessage(); }
+            
+            try { $modelo->setRoundsPautados((int)($_POST['rounds_pautados'] ?? 3)); }
+            catch (InvalidArgumentException $e) { $errores['rounds_pautados'] = $e->getMessage(); }
+            
+            try { $modelo->setRoundFinalizacion(!empty($_POST['round_finalizacion']) ? (int)$_POST['round_finalizacion'] : null); }
+            catch (InvalidArgumentException $e) { $errores['round_finalizacion'] = $e->getMessage(); }
+            
+            try { $modelo->setDecisionVictoria($_POST['decision_victoria'] ?? null); }
+            catch (InvalidArgumentException $e) { $errores['decision_victoria'] = $e->getMessage(); }
+            
+            try { $modelo->setResultado($_POST['resultado'] ?? 'Pendiente'); }
+            catch (InvalidArgumentException $e) { $errores['resultado'] = $e->getMessage(); }
+            
+            try { $modelo->setPosicionLlave(!empty($_POST['posicion_llave']) ? (int)$_POST['posicion_llave'] : null); }
+            catch (InvalidArgumentException $e) { $errores['posicion_llave'] = $e->getMessage(); }
+            
+            // Validación de reglas cruzadas (ronda final <= rounds pautados)
             $roundFinal = !empty($_POST['round_finalizacion']) ? (int)$_POST['round_finalizacion'] : null;
-            $posicion = !empty($_POST['posicion_llave']) ? (int)$_POST['posicion_llave'] : null;
-            
-            // ============ VALIDACIONES DE REGLAS DE NEGOCIO ============
-            if ($idLocal <= 0) $errores['id_atleta_local'] = 'Debes seleccionar el atleta local';
-            if ($idVisitante <= 0) $errores['id_atleta_visitante'] = 'Debes seleccionar el atleta visitante';
-            
-            if ($idLocal > 0 && $idVisitante > 0 && $idLocal === $idVisitante) {
-                $errores['id_atleta_visitante'] = 'El atleta local y visitante no pueden ser el mismo';
+            $roundsPautados = (int)($_POST['rounds_pautados'] ?? 3);
+            if ($roundFinal !== null && $roundFinal > $roundsPautados) {
+                $errores['round_finalizacion'] = "El asalto no puede superar los {$roundsPautados} pautados";
             }
             
-            if ($fecha === '') {
-                $errores['fecha'] = 'La fecha del combate es obligatoria';
-            } elseif (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha)) {
-                $errores['fecha'] = 'Formato de fecha inválido';
-            }
-            
-            if ($ronda <= 0) {
-                $errores['ronda'] = 'La ronda debe ser un número positivo';
-            }
-            
-            if (!in_array($roundsPautados, [3, 6, 8, 10, 12])) {
-                $errores['rounds_pautados'] = 'Número de asaltos inválido';
-            }
-            
-            if ($roundFinal !== null) {
-                if ($roundFinal <= 0) {
-                    $errores['round_finalizacion'] = 'El asalto debe ser mayor a 0';
-                } elseif ($roundFinal > $roundsPautados) {
-                    $errores['round_finalizacion'] = "El asalto no puede superar los {$roundsPautados} pautados";
-                }
-            }
-            
-            if (!in_array($resultado, ['Pendiente', 'Local', 'Visitante', 'Empate'])) {
-                $errores['resultado'] = 'Resultado inválido';
-            }
-            
-            if (!empty($decision) && !in_array($decision, ['KO','TKO','UD','SD','MD','RTD','DQ','NC','UED','SED','MED','TD','TED'])) {
-                $errores['decision_victoria'] = 'Decisión inválida';
-            }
-            
-            if ($resultado === 'Pendiente' && !empty($decision)) {
-                $errores['decision_victoria'] = 'No puedes registrar decisión si el resultado está Pendiente';
-            }
-            
-            if ($posicion !== null && $posicion < 0) {
-                $errores['posicion_llave'] = 'La posición no puede ser negativa';
-            }
-            
-            // ============ VALIDACIÓN DE TARJETAS DE PUNTUACIÓN ============
+            // Validación de tarjetas
             $tarjetas = $_POST['tarjetas'] ?? [];
             $tarjetasLimpias = [];
-            $combinaciones = []; // Para detectar duplicados (juez + round)
-
-             if ($resultado === 'Pendiente' && !empty($tarjetas)) {
-                $hayTarjetas = false;
+            $combinaciones = [];
+            $resultado = $_POST['resultado'] ?? 'Pendiente';
+            
+            if ($resultado === 'Pendiente' && !empty($tarjetas)) {
                 foreach ($tarjetas as $t) {
                     if (!empty($t['id_juez']) || !empty($t['puntos_local']) || !empty($t['puntos_visitante'])) {
-                        $hayTarjetas = true;
+                        $errores['tarjetas'] = 'No puedes registrar tarjetas si el combate está Pendiente';
                         break;
                     }
-                }
-                if ($hayTarjetas) {
-                    $errores['tarjetas'] = 'No puedes registrar tarjetas de puntuación si el combate está Pendiente';
                 }
             }
             
-            
-            if (!empty($tarjetas) && is_array($tarjetas)) {
+            if (empty($errores['tarjetas']) && !empty($tarjetas) && is_array($tarjetas)) {
                 foreach ($tarjetas as $t) {
-                    // Ignorar filas completamente vacías
-                    if (empty($t['id_juez']) && empty($t['puntos_local']) && empty($t['puntos_visitante'])) {
-                        continue;
-                    }
-                    
-                    if (empty($t['id_juez'])) {
-                        $errores['tarjetas'] = 'Cada tarjeta debe tener un juez asignado';
-                        break;
-                    }
-                    if (empty($t['numero_round']) || (int)$t['numero_round'] <= 0) {
-                        $errores['tarjetas'] = 'El número de round debe ser positivo';
-                        break;
-                    }
-                    
+                    if (empty($t['id_juez']) && empty($t['puntos_local']) && empty($t['puntos_visitante'])) continue;
+                    if (empty($t['id_juez'])) { $errores['tarjetas'] = 'Cada tarjeta debe tener un juez'; break; }
+                    if (empty($t['numero_round']) || (int)$t['numero_round'] <= 0) { $errores['tarjetas'] = 'El round debe ser positivo'; break; }
                     $pl = (int)($t['puntos_local'] ?? 0);
                     $pv = (int)($t['puntos_visitante'] ?? 0);
-                    
-                    if ($pl < 6 || $pl > 10 || $pv < 6 || $pv > 10) {
-                        $errores['tarjetas'] = 'Los puntos deben estar entre 6 y 10';
-                        break;
-                    }
-                    
-                    // Validar duplicados (mismo juez + mismo round)
+                    if ($pl < 6 || $pl > 10 || $pv < 6 || $pv > 10) { $errores['tarjetas'] = 'Puntos entre 6 y 10'; break; }
                     $key = $t['id_juez'] . '-' . $t['numero_round'];
-                    if (isset($combinaciones[$key])) {
-                        $errores['tarjetas'] = 'No puedes registrar dos tarjetas del mismo juez para el mismo round';
-                        break;
-                    }
+                    if (isset($combinaciones[$key])) { $errores['tarjetas'] = 'No puedes duplicar tarjetas del mismo juez y round'; break; }
                     $combinaciones[$key] = true;
-                    
                     $tarjetasLimpias[] = [
                         'id_juez' => (int)$t['id_juez'],
                         'numero_round' => (int)$t['numero_round'],
@@ -275,7 +220,6 @@ class CombatesController extends Controller {
                 }
             }
             
-            // ============ RESPUESTA TEMPRANA EN CASO DE ERRORES ============
             if (!empty($errores)) {
                 $this->json([
                     'status' => 'error',
@@ -284,33 +228,18 @@ class CombatesController extends Controller {
                 ], 422);
             }
             
-            // ============ DELEGACIÓN DE LA PERSISTENCIA AL MODELO ============
-            $datos = [
-                'id_torneo' => !empty($_POST['id_torneo']) ? (int)$_POST['id_torneo'] : null,
-                'id_atleta_local' => $idLocal,
-                'id_atleta_visitante' => $idVisitante,
-                'fecha' => $fecha,
-                'ronda' => $ronda,
-                'rounds_pautados' => $roundsPautados,
-                'round_finalizacion' => $roundFinal,
-                'decision_victoria' => $decision ?: null,
-                'resultado' => $resultado,
-                'posicion_llave' => $posicion,
-            ];
-            
-            $modelo = new Combate();
+            // Persistir usando los métodos SIN parámetros
             if ($id > 0) {
-                $modelo->actualizar($id, $datos);
+                $modelo->setIdCombate($id);
+                $modelo->actualizar();
                 $mensaje = "Combate actualizado correctamente";
             } else {
-                $id = $modelo->crear($datos);
+                $id = $modelo->crear();
                 $mensaje = "Combate creado correctamente";
             }
             
-            // Guardar tarjetas
             (new TarjetaPuntuacion())->guardarTarjetas($id, $tarjetasLimpias);
             
-            // ============ RESPUESTA EXITOSA ============
             $this->json([
                 'status' => 'success',
                 'mensaje' => $mensaje,
@@ -321,37 +250,26 @@ class CombatesController extends Controller {
             $this->json(['status' => 'error', 'mensaje' => $e->getMessage()], 422);
         } catch (Exception $e) {
             error_log("[CombatesController::guardar] " . $e->getMessage());
-            $this->json(['status' => 'error', 'mensaje' => 'Error interno del servidor: ' . $e->getMessage()], 500);
+            $this->json(['status' => 'error', 'mensaje' => 'Error interno del servidor'], 500);
         }
     }
     
-    /**
-     * Elimina un combate.
-     */
     public function eliminar(): void {
         $this->requireRol(['Administrador']);
         try {
             $id = (int)($_GET['id'] ?? 0);
-            if ($id <= 0) throw new InvalidArgumentException("ID de combate inválido");
-            
+            if ($id <= 0) throw new InvalidArgumentException("ID inválido");
             $modelo = new Combate();
             if (!$modelo->obtener($id)) throw new Exception("Combate no encontrado");
-            
-            if ($modelo->eliminar($id)) {
-                $_SESSION['ok'] = "Combate eliminado correctamente";
-            } else {
-                $_SESSION['error'] = "No se pudo eliminar el combate";
-            }
+            if ($modelo->eliminar($id)) $_SESSION['ok'] = "Combate eliminado correctamente";
+            else $_SESSION['error'] = "No se pudo eliminar";
         } catch (Exception $e) {
             $_SESSION['error'] = $e->getMessage();
         }
         $this->redirect('index.php?c=combates&a=index');
     }
     
-    /**
-     * Genera sugerencias de emparejamiento inteligente.
-     */
-        public function sugerir(): void {
+    public function sugerir(): void {
         try {
             $this->requireRol(['Administrador', 'Entrenador']);
             
@@ -360,7 +278,6 @@ class CombatesController extends Controller {
             $filtros = ['categoria' => '', 'min' => 0, 'max' => 100];
             $errores = [];
             
-            // Si es POST, procesar los filtros
             if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $filtros = [
                     'categoria' => (int)($_POST['categoria'] ?? 0),
@@ -368,40 +285,23 @@ class CombatesController extends Controller {
                     'max' => (int)($_POST['max'] ?? 100),
                 ];
                 
-                if ($filtros['categoria'] <= 0) {
-                    $errores['categoria'] = 'Selecciona una categoría';
-                }
+                if ($filtros['categoria'] <= 0) $errores['categoria'] = 'Selecciona una categoría';
                 
                 if (empty($errores)) {
-                    $sugerencias = (new Combate())->sugerir(
-                        $filtros['categoria'],
-                        $filtros['min'],
-                        $filtros['max']
-                    );
+                    $sugerencias = (new Combate())->sugerir($filtros['categoria'], $filtros['min'], $filtros['max']);
                 }
                 
-                // Si es AJAX, devolver JSON
                 if ($this->isAjax()) {
-                    if (!empty($errores)) {
-                        $this->json(['status' => 'error', 'mensaje' => reset($errores)], 422);
-                    }
-                    $this->json([
-                        'status' => 'success',
-                        'sugerencias' => $sugerencias
-                    ]);
+                    if (!empty($errores)) $this->json(['status' => 'error', 'mensaje' => reset($errores)], 422);
+                    $this->json(['status' => 'success', 'sugerencias' => $sugerencias]);
                 }
             }
             
-            // Scripts del módulo
             $scriptsModulo = ['public/js/combates.js'];
-            
             $this->view('combates/sugerir', compact('categorias', 'sugerencias', 'filtros', 'scriptsModulo'));
-            
         } catch (Exception $e) {
             error_log("[CombatesController::sugerir] " . $e->getMessage());
-            if ($this->isAjax()) {
-                $this->json(['status' => 'error', 'mensaje' => $e->getMessage()], 500);
-            }
+            if ($this->isAjax()) $this->json(['status' => 'error', 'mensaje' => $e->getMessage()], 500);
             $_SESSION['error'] = "Error al generar emparejamientos";
             $this->redirect('index.php?c=combates&a=index');
         }
